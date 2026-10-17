@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Original Whispr mark: a speech bubble dissolving into whisper dots -->
+  <defs>
+    <linearGradient id="wg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8b5cf6"/>
+      <stop offset="1" stop-color="#06b6d4"/>
+    </linearGradient>
+  </defs>
+  <path d="M32 6C17 6 6 17 6 30c0 7 3.4 13.3 8.8 17.4L12 58l11.4-4.2c2.7.9 5.6 1.4 8.6 1.4 15 0 26-11 26-24.2S47 6 32 6z" fill="url(#wg)"/>
+  <circle cx="24" cy="29" r="3.4" fill="#fff"/>
+  <circle cx="34" cy="29" r="3.4" fill="#fff" opacity=".75"/>
+  <circle cx="44" cy="29" r="3.4" fill="#fff" opacity=".45"/>
+</svg>

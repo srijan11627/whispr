@@ -1,0 +1,28 @@
+<!doctype html>
+<!-- Whispr v3 — private circles. Built 2026-10-18. Verify: window.__whispr.version === 3 -->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#FAF9FF" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0B0A10" />
+    <meta name="description" content="Whispr — private real-time messaging in invite-only circles." />
+    <title>Whispr — private circles</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <script>
+      // no-flash theme: OS-first, persisted override (mirrors src/theme.jsx)
+      try {
+        var saved = localStorage.getItem("whispr-theme");
+        var dark = saved ? saved === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+        if (dark) document.documentElement.classList.add("dark");
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

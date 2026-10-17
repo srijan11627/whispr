@@ -1,0 +1,266 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   Whispr design tokens — two intentionally-designed themes
+   ============================================================ */
+:root {
+  color-scheme: light;
+  --bg-0: #FAF9FF;
+  --bg-1: #F4F1FB;
+  --bg-sidebar: #F7F5FC;
+  --bg-elev: #FFFFFF;
+  --bg-hover: #F0EBFA;
+  --bg-active: #EAE2FC;
+  --violet: #7553D9;
+  --violet-deep: #6341C6;
+  --lavender: #8B6BE8;
+  --accent: #7553D9;
+  --pink: #D946EF;
+  --text-1: #211B31;
+  --text-2: #655D75;
+  --text-3: #736D7D;
+  --border: #E8E1F2;
+  --success: #059669;
+  --warning: #D97706;
+  --error: #E11D48;
+  --shadow-soft: 0 1px 2px rgba(33, 27, 49, 0.05), 0 4px 16px rgba(33, 27, 49, 0.06);
+  --shadow-lift: 0 2px 6px rgba(33, 27, 49, 0.08), 0 12px 32px rgba(33, 27, 49, 0.12);
+  --shadow-glow: 0 4px 18px rgba(117, 83, 217, 0.35);
+  --overlay: rgba(33, 27, 49, 0.45);
+  --track: #E4DCF3;
+  --thumb: #C9BDE6;
+  --thumb-hover: #B3A3DC;
+}
+
+.dark {
+  color-scheme: dark;
+  --bg-0: #0B0A10;
+  --bg-1: #11101A;
+  --bg-sidebar: #100F18;
+  --bg-elev: #181622;
+  --bg-hover: #211E2D;
+  --bg-active: #292337;
+  --violet: #A78BFA;
+  --violet-deep: #8B5CF6;
+  --lavender: #C4B5FD;
+  --accent: #8B5CF6;
+  --pink: #F0ABFC;
+  --text-1: #F5F3FF;
+  --text-2: #A7A2B8;
+  --text-3: #8A8399;
+  --border: rgba(196, 181, 253, 0.12);
+  --success: #34D399;
+  --warning: #FBBF24;
+  --error: #FB7185;
+  --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 16px rgba(0, 0, 0, 0.35);
+  --shadow-lift: 0 4px 12px rgba(0, 0, 0, 0.5), 0 16px 40px rgba(0, 0, 0, 0.45);
+  --shadow-glow: 0 4px 22px rgba(139, 92, 246, 0.45);
+  --overlay: rgba(5, 4, 10, 0.6);
+  --track: transparent;
+  --thumb: #2E2A3F;
+  --thumb-hover: #3B3552;
+}
+
+/* ---------- base ---------- */
+html, body, #root { height: 100%; }
+body {
+  background: var(--bg-0);
+  color: var(--text-1);
+  font-family: Inter, Geist, "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-feature-settings: "cv11", "ss01";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overscroll-behavior: none;
+}
+* { -webkit-tap-highlight-color: transparent; }
+::selection { background: color-mix(in srgb, var(--violet) 30%, transparent); }
+
+input, textarea, select { outline: none; font: inherit; color: inherit; }
+input::placeholder, textarea::placeholder { color: var(--text-3); opacity: 0.85; }
+
+:focus-visible {
+  outline: 2px solid var(--violet);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* smooth theme switching — .theming is toggled on <html> for ~300ms */
+.theming, .theming *, .theming *::before, .theming *::after {
+  transition: background-color 0.28s ease, border-color 0.28s ease, color 0.28s ease,
+    fill 0.28s ease, stroke 0.28s ease, box-shadow 0.28s ease !important;
+}
+
+/* ---------- scrollbars ---------- */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--track); }
+::-webkit-scrollbar-thumb {
+  background: var(--thumb);
+  border-radius: 8px;
+  border: 2.5px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--thumb-hover); background-clip: content-box; border: 2.5px solid transparent; }
+* { scrollbar-width: thin; scrollbar-color: var(--thumb) var(--track); }
+
+/* ---------- surfaces ---------- */
+.card {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow-soft);
+}
+.glass {
+  background: color-mix(in srgb, var(--bg-elev) 82%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--border);
+}
+.divider { height: 1px; background: var(--border); }
+
+/* ---------- ambient page background (auth / empty states only) ---------- */
+.ambient {
+  background:
+    radial-gradient(720px 420px at 12% -8%, color-mix(in srgb, var(--violet) 16%, transparent), transparent 62%),
+    radial-gradient(640px 400px at 88% 108%, color-mix(in srgb, var(--pink) 10%, transparent), transparent 60%),
+    var(--bg-0);
+}
+.dark .ambient {
+  background:
+    radial-gradient(720px 420px at 12% -8%, rgba(139, 92, 246, 0.14), transparent 62%),
+    radial-gradient(640px 400px at 88% 108%, rgba(240, 171, 252, 0.07), transparent 60%),
+    var(--bg-0);
+}
+
+/* ============================================================
+   Mood themes — per-chat vibes. Subtle by design; bubbles carry
+   the mood color so the conversation stays readable.
+   ============================================================ */
+.mood {
+  --bubble-mine: var(--violet-deep);
+  --bubble-mine-2: var(--violet);
+  --bubble-mine-text: #fff;
+  --mood-glow: color-mix(in srgb, var(--violet) 9%, transparent);
+  background: radial-gradient(900px 480px at 18% -10%, var(--mood-glow), transparent 62%), var(--bg-0);
+}
+.dark .mood { --mood-glow: rgba(139, 92, 246, 0.13); }
+
+.mood-midnight { --bubble-mine: #7553D9; --bubble-mine-2: #6341C6; }
+.dark .mood-midnight { --bubble-mine: #8B5CF6; --bubble-mine-2: #7C5CF0; --mood-glow: rgba(139, 92, 246, 0.15); }
+
+.mood-sunset { --bubble-mine: #EA580C; --bubble-mine-2: #C2410C; --mood-glow: rgba(234, 88, 12, 0.08); }
+.dark .mood-sunset { --bubble-mine: #F97316; --bubble-mine-2: #EA580C; --mood-glow: rgba(249, 115, 22, 0.12); }
+
+.mood-forest { --bubble-mine: #059669; --bubble-mine-2: #047857; --mood-glow: rgba(5, 150, 105, 0.08); }
+.dark .mood-forest { --bubble-mine: #10B981; --bubble-mine-2: #059669; --mood-glow: rgba(16, 185, 129, 0.11); }
+
+.mood-candy { --bubble-mine: #DB2777; --bubble-mine-2: #BE185D; --mood-glow: rgba(219, 39, 119, 0.08); }
+.dark .mood-candy { --bubble-mine: #EC4899; --bubble-mine-2: #DB2777; --mood-glow: rgba(236, 72, 153, 0.12); }
+
+.bubble-mine {
+  background: linear-gradient(135deg, var(--bubble-mine), var(--bubble-mine-2));
+  color: var(--bubble-mine-text);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 4px 14px color-mix(in srgb, var(--bubble-mine) 28%, transparent);
+}
+.bubble-theirs {
+  background: var(--bg-elev);
+  color: var(--text-1);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-soft);
+}
+
+/* ============================================================
+   Motion — purposeful, transform/opacity only
+   ============================================================ */
+.msg-in { animation: msg-in 0.18s ease-out; }
+@keyframes msg-in { from { transform: translateY(10px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+.nudge-shake { animation: nudge-shake 0.5s ease-in-out; }
+@keyframes nudge-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-10px) rotate(-0.6deg); }
+  40% { transform: translateX(9px) rotate(0.6deg); }
+  60% { transform: translateX(-6px); }
+  80% { transform: translateX(5px); }
+}
+
+.typing-dot { width: 6px; height: 6px; border-radius: 9999px; background: var(--text-3); animation: typing 1.2s infinite; }
+.typing-dot:nth-child(2) { animation-delay: 0.15s; }
+.typing-dot:nth-child(3) { animation-delay: 0.3s; }
+@keyframes typing { 0%, 60%, 100% { opacity: 0.3; transform: none; } 30% { opacity: 1; transform: translateY(-3px); } }
+
+.pop-in { animation: pop-in 0.16s ease-out; }
+@keyframes pop-in { from { transform: scale(0.92); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+.msg-highlight { outline: 2px solid var(--warning); outline-offset: 3px; border-radius: 14px; }
+
+.whisper-pill {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 600;
+  padding: 2px 8px; border-radius: 9999px;
+  background: rgba(0, 0, 0, 0.28); color: #fff;
+}
+
+/* skeleton shimmer */
+.skeleton {
+  position: relative; overflow: hidden;
+  background: var(--bg-hover); border-radius: 8px;
+}
+.skeleton::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--text-1) 7%, transparent), transparent);
+  animation: shimmer 1.4s infinite;
+}
+@keyframes shimmer { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+
+/* CSS tooltips for icon-only buttons */
+[data-tip] { position: relative; }
+[data-tip]:hover::after, [data-tip]:focus-visible::after {
+  content: attr(data-tip);
+  position: absolute; bottom: calc(100% + 8px); left: 50%;
+  transform: translateX(-50%) translateY(3px);
+  background: var(--text-1); color: var(--bg-0);
+  font-size: 11px; font-weight: 600; line-height: 1;
+  padding: 6px 9px; border-radius: 8px; white-space: nowrap;
+  box-shadow: var(--shadow-lift); z-index: 80; pointer-events: none;
+  animation: tip-in 0.14s ease-out forwards;
+}
+@keyframes tip-in { to { transform: translateX(-50%) translateY(0); } }
+
+/* soft tinted surfaces — Tailwind v3 can't apply opacity modifiers to
+   full-value CSS-variable colors, so these use color-mix directly */
+.bg-brand-soft { background-color: color-mix(in srgb, var(--violet) 12%, transparent); }
+.bg-danger-soft { background-color: color-mix(in srgb, var(--error) 10%, transparent); }
+.bg-warning-soft { background-color: color-mix(in srgb, var(--warning) 12%, transparent); }
+.border-danger-soft { border-color: color-mix(in srgb, var(--error) 28%, transparent); }
+.border-warning-soft { border-color: color-mix(in srgb, var(--warning) 32%, transparent); }
+.ring-brand-soft { --tw-ring-color: color-mix(in srgb, var(--violet) 25%, transparent); }
+.ring-warning-soft { --tw-ring-color: color-mix(in srgb, var(--warning) 30%, transparent); }
+
+/* press feedback for icon buttons */
+.pressable { transition: transform 0.12s ease, background-color 0.16s ease, color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease, opacity 0.16s ease; }
+.pressable:active { transform: scale(0.93); }
+
+/* touch devices have no hover — show a subtle chevron instead of the full action bar */
+.touch-chevron { display: none; }
+@media (hover: none) {
+  .touch-chevron { display: inline-flex; }
+}
+
+/* composer safe-area for mobile keyboards */
+.composer-safe { padding-bottom: max(0.75rem, env(safe-area-inset-bottom)); }
+
+/* ============================================================
+   Reduced motion — minimize movement, keep feedback
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  .msg-in, .nudge-shake, .pop-in, .typing-dot, .skeleton::after,
+  [data-tip]:hover::after, [data-tip]:focus-visible::after {
+    animation: none !important;
+  }
+  .theming, .theming *, .theming *::before, .theming *::after { transition: none !important; }
+  .pressable { transition: none; }
+  .pressable:active { transform: none; }
+  html { scroll-behavior: auto; }
+}
