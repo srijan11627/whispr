@@ -123,13 +123,19 @@ export function SectionLabel({ children, right }) {
 /* ---------- dialog (modal) ---------- */
 export function Dialog({ open, onClose, title, children, labelledBy }) {
   const dialogRef = useRef(null);
+  // onClose is usually an inline arrow (new identity every render) — keep it in
+  // a ref so the effect below only (re)runs when `open` actually changes.
+  // Otherwise the "focus on open" timer would re-fire on every keystroke and
+  // steal focus out of inputs inside the dialog.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     if (!open) return;
     // focus the dialog on open
     const t = setTimeout(() => dialogRef.current?.focus(), 30);
     const onKey = (e) => {
-      if (e.key === "Escape") { e.stopPropagation(); onClose(); }
+      if (e.key === "Escape") { e.stopPropagation(); onCloseRef.current(); }
       // light focus trap: keep Tab inside the dialog
       if (e.key === "Tab" && dialogRef.current) {
         const items = dialogRef.current.querySelectorAll(
@@ -144,7 +150,7 @@ export function Dialog({ open, onClose, title, children, labelledBy }) {
     };
     document.addEventListener("keydown", onKey, true);
     return () => { clearTimeout(t); document.removeEventListener("keydown", onKey, true); };
-  }, [open, onClose]);
+  }, [open]);
 
   return (
     <AnimatePresence>
