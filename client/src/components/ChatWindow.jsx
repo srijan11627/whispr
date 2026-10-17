@@ -93,6 +93,17 @@ export default function ChatWindow({ onBack }) {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const listRef = useRef(null);
   const bottomRef = useRef(null);
+
+  // stable actions object for the Composer — an inline literal here would be
+  // recreated on every keystroke-render; memoizing keeps the Composer subtree calm
+  const composerActions = useMemo(() => ({
+    send: (p) => w.sendMessage(p),
+    edit: (id, body) => w.editMessage(id, body),
+    temp: (key, temp) => w.addTempMessage(key, temp),
+    fail: (key, tempId) => w.failTempMessage(key, tempId),
+    nudge: (c) => w.nudge(c.chatType, c.chatId),
+    typing: (c, on) => w.sendTyping(c.chatType, c.chatId, on),
+  }), [w]);
   const prevLen = useRef(0);
   const membersRef = useRef(null);
   const mood = themes[chat.key] || "midnight";
@@ -397,14 +408,7 @@ export default function ChatWindow({ onBack }) {
         chat={chat} user={user}
         replyTo={replyTo} setReplyTo={setReplyTo}
         editing={editing} setEditing={setEditing}
-        actions={{
-          send: (p) => w.sendMessage(p),
-          edit: (id, body) => w.editMessage(id, body),
-          temp: (key, temp) => w.addTempMessage(key, temp),
-          fail: (key, tempId) => w.failTempMessage(key, tempId),
-          nudge: (c) => w.nudge(c.chatType, c.chatId),
-          typing: (c, on) => w.sendTyping(c.chatType, c.chatId, on),
-        }}
+        actions={composerActions}
       />
 
       {/* delete confirmation */}

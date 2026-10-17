@@ -1,7 +1,7 @@
 // Whispr global store: auth, chat list, messages, and all Socket.io wiring.
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { api, setToken, getToken } from "./api";
-import { connectSocket, disconnectSocket } from "./socket";
+import { connectSocket, disconnectSocket, getSocket } from "./socket";
 
 const Ctx = createContext(null);
 export const useWhispr = () => useContext(Ctx);
