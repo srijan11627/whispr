@@ -4,34 +4,47 @@
 
 /* ============================================================
    Whispr design tokens — two intentionally-designed themes
+   Dark:  Midnight Aurora — near-black plum, lavender, violet, rose
+   Light: Mist Garden    — ivory, misty mint, pale lavender, dusty rose
    ============================================================ */
 :root {
   color-scheme: light;
-  --bg-0: #FAF9FF;
-  --bg-1: #F4F1FB;
-  --bg-sidebar: #F7F5FC;
+  --bg-0: #F6F7F4;
+  --bg-1: #EDF1EE;
+  --bg-sidebar: #F2F5F1;
   --bg-elev: #FFFFFF;
-  --bg-hover: #F0EBFA;
-  --bg-active: #EAE2FC;
-  --violet: #7553D9;
-  --violet-deep: #6341C6;
-  --lavender: #8B6BE8;
-  --accent: #7553D9;
-  --pink: #D946EF;
-  --text-1: #211B31;
-  --text-2: #655D75;
-  --text-3: #736D7D;
-  --border: #E8E1F2;
-  --success: #059669;
-  --warning: #D97706;
-  --error: #E11D48;
-  --shadow-soft: 0 1px 2px rgba(33, 27, 49, 0.05), 0 4px 16px rgba(33, 27, 49, 0.06);
-  --shadow-lift: 0 2px 6px rgba(33, 27, 49, 0.08), 0 12px 32px rgba(33, 27, 49, 0.12);
-  --shadow-glow: 0 4px 18px rgba(117, 83, 217, 0.35);
-  --overlay: rgba(33, 27, 49, 0.45);
-  --track: #E4DCF3;
-  --thumb: #C9BDE6;
-  --thumb-hover: #B3A3DC;
+  --bg-hover: #E9EEE9;
+  --bg-active: #E2E9E4;
+  --violet: #7960D8;
+  --violet-deep: #6349C4;
+  --lavender: #9A82E8;
+  --accent: #7960D8;
+  --pink: #C9B5F4;
+  --rose: #D96F91;
+  --text-1: #252334;
+  --text-2: #5B5A6B;
+  --text-3: #747285;
+  --border: #DEE3DC;
+  --success: #0E9F6E;
+  --warning: #C77E1F;
+  --error: #DC2645;
+  --shadow-soft: 0 1px 2px rgba(37, 35, 52, 0.05), 0 4px 16px rgba(37, 35, 52, 0.06);
+  --shadow-lift: 0 2px 6px rgba(37, 35, 52, 0.08), 0 12px 32px rgba(37, 35, 52, 0.12);
+  --shadow-glow: 0 4px 18px rgba(121, 96, 216, 0.32);
+  --overlay: rgba(37, 35, 52, 0.42);
+  --track: #E2E7E1;
+  --thumb: #C6CFC5;
+  --thumb-hover: #AEB9AD;
+
+  /* motion tokens */
+  --motion-micro: 120ms;
+  --motion-hover: 170ms;
+  --motion-menu: 190ms;
+  --motion-dialog: 220ms;
+  --motion-msg: 200ms;
+  --motion-workspace: 260ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
 }
 
 .dark {
@@ -39,7 +52,7 @@
   --bg-0: #0B0A10;
   --bg-1: #11101A;
   --bg-sidebar: #100F18;
-  --bg-elev: #181622;
+  --bg-elev: #191724;
   --bg-hover: #211E2D;
   --bg-active: #292337;
   --violet: #A78BFA;
@@ -47,10 +60,11 @@
   --lavender: #C4B5FD;
   --accent: #8B5CF6;
   --pink: #F0ABFC;
-  --text-1: #F5F3FF;
-  --text-2: #A7A2B8;
-  --text-3: #8A8399;
-  --border: rgba(196, 181, 253, 0.12);
+  --rose: #FF8C9B;
+  --text-1: #F5F2FA;
+  --text-2: #AAA5BC;
+  --text-3: #8F8A9E;
+  --border: rgba(190, 170, 230, 0.14);
   --success: #34D399;
   --warning: #FBBF24;
   --error: #FB7185;
@@ -119,19 +133,123 @@ input::placeholder, textarea::placeholder { color: var(--text-3); opacity: 0.85;
 }
 .divider { height: 1px; background: var(--border); }
 
-/* ---------- ambient page background (auth / empty states only) ---------- */
+/* ---------- ambient page background (auth / empty states / splash) ---------- */
 .ambient {
   background:
-    radial-gradient(720px 420px at 12% -8%, color-mix(in srgb, var(--violet) 16%, transparent), transparent 62%),
-    radial-gradient(640px 400px at 88% 108%, color-mix(in srgb, var(--pink) 10%, transparent), transparent 60%),
+    radial-gradient(720px 420px at 12% -8%, rgba(121, 96, 216, 0.10), transparent 62%),
+    radial-gradient(640px 400px at 88% 108%, rgba(14, 159, 110, 0.07), transparent 60%),
+    radial-gradient(520px 340px at 82% 8%, rgba(201, 181, 244, 0.20), transparent 58%),
     var(--bg-0);
 }
 .dark .ambient {
   background:
     radial-gradient(720px 420px at 12% -8%, rgba(139, 92, 246, 0.14), transparent 62%),
     radial-gradient(640px 400px at 88% 108%, rgba(240, 171, 252, 0.07), transparent 60%),
+    radial-gradient(560px 360px at 85% 6%, rgba(255, 140, 155, 0.05), transparent 58%),
     var(--bg-0);
 }
+
+/* slow-drifting aurora wash for hero surfaces — transform/opacity only */
+.aurora { position: relative; overflow: hidden; }
+.aurora::before {
+  content: ""; position: absolute; inset: -20%;
+  background:
+    radial-gradient(42% 38% at 22% 28%, color-mix(in srgb, var(--violet) 22%, transparent), transparent 70%),
+    radial-gradient(38% 34% at 78% 68%, color-mix(in srgb, var(--pink) 16%, transparent), transparent 70%),
+    radial-gradient(30% 28% at 62% 18%, color-mix(in srgb, var(--rose) 12%, transparent), transparent 70%);
+  animation: aurora-drift 18s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+@keyframes aurora-drift {
+  from { transform: translate3d(-2%, 1%, 0) scale(1); }
+  to { transform: translate3d(2%, -1.5%, 0) scale(1.06); }
+}
+
+/* ============================================================
+   Brand mark — three luminous dots, whisper traveling through space
+   ============================================================ */
+.whispr-mark { display: inline-block; line-height: 0; }
+.whispr-dot { animation: whispr-dot 1.8s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes whispr-dot {
+  0%, 100% { opacity: 0.45; transform: scale(0.82); }
+  30% { opacity: 1; transform: scale(1.12); }
+  60% { opacity: 0.7; transform: scale(0.95); }
+}
+.whispr-halo { animation: whispr-halo 3.2s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes whispr-halo {
+  0%, 100% { opacity: 0.55; transform: scale(0.96); }
+  50% { opacity: 1; transform: scale(1.05); }
+}
+
+/* ============================================================
+   Welcome splash
+   ============================================================ */
+.splash {
+  position: fixed; inset: 0; z-index: 100;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background:
+    radial-gradient(680px 420px at 50% 32%, rgba(139, 92, 246, 0.16), transparent 62%),
+    radial-gradient(520px 360px at 50% 78%, rgba(240, 171, 252, 0.06), transparent 60%),
+    #0B0A10;
+  overflow: hidden;
+}
+.splash-glow {
+  position: absolute; inset: -10%;
+  background: radial-gradient(40% 32% at 50% 42%, rgba(139, 92, 246, 0.20), transparent 70%);
+  animation: aurora-drift 7s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+.splash-wordmark {
+  margin-top: 18px;
+  font-size: 44px; font-weight: 800; letter-spacing: -0.03em; line-height: 1;
+  background: linear-gradient(100deg, #C4B5FD, #8B5CF6 55%, #F0ABFC);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: wordmark-in 0.9s var(--ease-out) 0.15s both;
+}
+@keyframes wordmark-in {
+  from { opacity: 0; filter: blur(14px); transform: translateY(6px); }
+  to { opacity: 1; filter: blur(0); transform: none; }
+}
+.splash-sub {
+  margin-top: 6px; font-size: 13px; font-weight: 500; letter-spacing: 0.14em;
+  text-transform: uppercase; color: rgba(245, 242, 250, 0.45);
+  animation: wordmark-in 0.8s var(--ease-out) 0.3s both;
+}
+.splash-greeting {
+  position: absolute; bottom: max(48px, env(safe-area-inset-bottom));
+  font-size: 15px; color: rgba(245, 242, 250, 0.72); font-weight: 500;
+  padding: 0 24px; text-align: center;
+}
+
+/* ============================================================
+   Motion — purposeful, transform/opacity only
+   ============================================================ */
+.msg-in { animation: msg-in var(--motion-msg) ease-out; }
+@keyframes msg-in { from { transform: translateY(10px); opacity: 0; } to { transform: none; opacity: 1; } }
+.msg-in-mine { animation: msg-in-mine var(--motion-msg) ease-out; }
+@keyframes msg-in-mine { from { transform: translate(14px, 8px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* optimistic bubble: a soft shimmer travels across while sending */
+.msg-sending { position: relative; overflow: hidden; }
+.msg-sending::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, 0.22) 50%, transparent 70%);
+  animation: send-shimmer 1.3s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes send-shimmer { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+
+/* tiny celebratory pop for the circle-created success mark */
+.celebrate { animation: celebrate 0.55s var(--ease-spring); transform-origin: center; }
+@keyframes celebrate {
+  0% { transform: scale(0.4); opacity: 0; }
+  60% { transform: scale(1.12); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* copy checkmark draw */
+.check-draw { stroke-dasharray: 24; stroke-dashoffset: 24; animation: check-draw 0.4s ease-out 0.05s forwards; }
+@keyframes check-draw { to { stroke-dashoffset: 0; } }
 
 /* ============================================================
    Mood themes — per-chat vibes. Subtle by design; bubbles carry
@@ -172,10 +290,8 @@ input::placeholder, textarea::placeholder { color: var(--text-3); opacity: 0.85;
 
 /* ============================================================
    Motion — purposeful, transform/opacity only
+   (msg-in / msg-in-mine are defined with the token system above)
    ============================================================ */
-.msg-in { animation: msg-in 0.18s ease-out; }
-@keyframes msg-in { from { transform: translateY(10px); opacity: 0; } to { transform: none; opacity: 1; } }
-
 .nudge-shake { animation: nudge-shake 0.5s ease-in-out; }
 @keyframes nudge-shake {
   0%, 100% { transform: translateX(0); }
@@ -255,10 +371,13 @@ input::placeholder, textarea::placeholder { color: var(--text-3); opacity: 0.85;
    Reduced motion — minimize movement, keep feedback
    ============================================================ */
 @media (prefers-reduced-motion: reduce) {
-  .msg-in, .nudge-shake, .pop-in, .typing-dot, .skeleton::after,
+  .msg-in, .msg-in-mine, .msg-sending::after, .nudge-shake, .pop-in, .typing-dot,
+  .skeleton::after, .whispr-dot, .whispr-halo, .aurora::before, .splash-glow,
+  .celebrate, .check-draw,
   [data-tip]:hover::after, [data-tip]:focus-visible::after {
     animation: none !important;
   }
+  .splash-wordmark, .splash-sub { animation-duration: 0.01s !important; }
   .theming, .theming *, .theming *::before, .theming *::after { transition: none !important; }
   .pressable { transition: none; }
   .pressable:active { transform: none; }

@@ -5,6 +5,9 @@ services:
     name: whispr
     runtime: docker
     plan: free
+    # Singapore: closest region to the user (India) and to the Turso DB (Mumbai).
+    # Cuts the per-roundtrip DB latency roughly in half vs Oregon (US West).
+    region: singapore
     dockerfilePath: ./Dockerfile
     healthCheckPath: /api/health
     envVars:

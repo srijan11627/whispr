@@ -63,7 +63,7 @@ export default function MessageBubble({ msg, mine, meId, showSender, actionsBelo
   const closeMenu = () => { setMenu(false); setPicker(false); setBarPinned(false); };
 
   return (
-    <div id={`msg-${msg.id}`} className={`msg-in flex ${mine ? "justify-end" : "justify-start"} px-3 sm:px-4 py-[3px] group/msg`}>
+    <div id={`msg-${msg.id}`} className={`${mine ? "msg-in-mine" : "msg-in"} flex ${mine ? "justify-end" : "justify-start"} px-3 sm:px-4 py-[3px] group/msg`}>
       {!mine && (
         <div className="mr-2 mt-0.5 self-start"><Avatar name={msg.sender.displayName} color={msg.sender.color} size={30} /></div>
       )}
@@ -91,7 +91,7 @@ export default function MessageBubble({ msg, mine, meId, showSender, actionsBelo
           <div
             onClick={() => { if (msg.tempFailed && onRetry) onRetry(msg); }}
             className={`relative px-3.5 py-2 rounded-lg2 ${mine ? "rounded-br-sm2 bubble-mine" : "rounded-bl-sm2 bubble-theirs"}
-              ${msg.tempFailed ? "opacity-80 cursor-pointer" : ""}`}
+              ${msg.tempFailed ? "opacity-80 cursor-pointer" : ""} ${msg.tempId && !msg.tempFailed ? "msg-sending" : ""}`}
           >
             {msg.expiresAt && (
               <span className="whisper-pill mb-1.5"><Timer size={11} /> whisper · {fmtLeft(left)}</span>
@@ -210,7 +210,7 @@ export default function MessageBubble({ msg, mine, meId, showSender, actionsBelo
 
         {/* reactions */}
         {Object.keys(grouped).length > 0 && (
-          <div className="flex flex-wrap gap-1 mt-1">
+          <div key={Object.values(grouped).reduce((n, rs) => n + rs.length, 0)} className="pop-in flex flex-wrap gap-1 mt-1">
             {Object.entries(grouped).map(([emoji, rs]) => {
               const reacted = rs.some((r) => r.userId === meId);
               return (

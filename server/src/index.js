@@ -118,6 +118,8 @@ function scheduleWhisper(messageId, chatType, chatId, expiresAt) {
       await run("UPDATE messages SET deleted = 1, body = '', attachment = NULL WHERE id = ?", messageId);
       await run("DELETE FROM reactions WHERE message_id = ?", messageId);
       io.to(roomOf(chatType, chatId)).emit("message-deleted", { chatType, chatId, messageId });
+      // distinct event so clients can show a discreet self-destruct notice
+      io.to(roomOf(chatType, chatId)).emit("whisper-expired", { chatType, chatId, messageId });
     }
   }), delay);
   whisperTimers.set(messageId, t);
@@ -129,6 +131,11 @@ router.onMessageDeleted = (chatType, chatId, messageId) => {
 };
 
 // ---- message insert (shared) ----
+// NOTE (latency): the old code seeded receipts with one INSERT per member and
+// fetched the hydrated message with 3 sequential queries. With the DB in
+// Mumbai and the server in Oregon/Singapore, each roundtrip is ~100-250ms, so
+// a DM send cost ~8 sequential roundtrips (~2s). Everything below is batched
+// and parallelized so a send costs ~4-5 roundtrips instead.
 async function insertMessage({ chatType, chatId, senderId, body, replyTo, attachment, expiresIn }) {
   const col = chatType === "circle" ? "circle_id" : "dm_id";
   const other = chatType === "circle" ? "dm_id" : "circle_id";
@@ -139,11 +146,33 @@ async function insertMessage({ chatType, chatId, senderId, body, replyTo, attach
     chatId, senderId, body || "", replyTo || null,
     attachment ? JSON.stringify(attachment) : null, expiresAt, Date.now());
   const id = info.lastInsertRowid;
-  // seed receipts for every other member
-  const members = (await chatMembers(chatType, chatId)).filter((m) => m.id !== senderId);
-  for (const m of members) await run("INSERT OR IGNORE INTO receipts (message_id, user_id) VALUES (?, ?)", id, m.id);
   if (expiresAt) scheduleWhisper(id, chatType, chatId, expiresAt);
   return id;
+}
+
+// one roundtrip: seed a receipt row for every member except the sender
+async function seedReceipts(chatType, chatId, messageId, senderId) {
+  if (chatType === "circle") {
+    await run(
+      `INSERT OR IGNORE INTO receipts (message_id, user_id)
+       SELECT ?, user_id FROM circle_members WHERE circle_id = ? AND user_id != ?`,
+      messageId, chatId, senderId);
+  } else {
+    await run(
+      `INSERT OR IGNORE INTO receipts (message_id, user_id)
+       SELECT ?, user_a FROM dms WHERE id = ? AND user_a != ?
+       UNION SELECT ?, user_b FROM dms WHERE id = ? AND user_b != ?`,
+      messageId, chatId, senderId, messageId, chatId, senderId);
+  }
+}
+
+// light member-id list (no user JOIN) for delivery marking
+async function chatMemberIds(chatType, chatId) {
+  if (chatType === "circle") {
+    return (await all("SELECT user_id AS id FROM circle_members WHERE circle_id = ?", chatId)).map((r) => r.id);
+  }
+  const dm = await get("SELECT user_a, user_b FROM dms WHERE id = ?", chatId);
+  return dm ? [dm.user_a, dm.user_b] : [];
 }
 
 async function fullMessage(messageId) {
@@ -214,20 +243,23 @@ io.on("connection", safe(async (socket) => {
         replyTo: replyTo || null, attachment: attachment || null,
         expiresIn: expiresIn ? Number(expiresIn) : null,
       });
-      const msg = await fullMessage(id);
+      // seed receipts first (the hydration query below reads them), then
+      // hydrate + fetch member ids in parallel — independent work
+      await seedReceipts(chatType, chatId, id, userId);
+      const [msg, memberIds] = await Promise.all([fullMessage(id), chatMemberIds(chatType, chatId)]);
       msg.clientTempId = (payload && payload.clientTempId) || null; // lets sender swap the optimistic bubble
 
-      // delivered = recipient currently online (has socket); mark for all others when they connect
-      const members = (await chatMembers(chatType, chatId)).filter((m) => m.id !== userId);
+      // delivered = recipient currently online (has socket); mark for all others when they connect.
+      // one batched UPDATE instead of one per member.
       const now = Date.now();
-      const deliveredItems = [];
-      for (const m of members) {
-        if (isOnline(m.id)) {
-          await run("UPDATE receipts SET delivered_at = COALESCE(delivered_at, ?) WHERE message_id = ? AND user_id = ?",
-            now, id, m.id);
-          deliveredItems.push({ messageId: id, chatType, chatId, userId: m.id });
-        }
+      const onlineIds = memberIds.filter((mid) => mid !== userId && isOnline(mid));
+      if (onlineIds.length) {
+        const marks = onlineIds.map(() => "?").join(",");
+        await run(
+          `UPDATE receipts SET delivered_at = COALESCE(delivered_at, ?) WHERE message_id = ? AND user_id IN (${marks})`,
+          now, id, ...onlineIds);
       }
+      const deliveredItems = onlineIds.map((uid) => ({ messageId: id, chatType, chatId, userId: uid }));
       io.to(roomOf(chatType, chatId)).emit("new-message", msg);
       if (deliveredItems.length) socket.emit("delivered", { items: deliveredItems });
       ack && ack({ ok: true, message: msg });

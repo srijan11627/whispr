@@ -1,9 +1,10 @@
 // New circle / join-by-code / start-DM dialog.
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Plus, KeyRound, MessageCircle, Copy, Check, Search, TriangleAlert, PartyPopper } from "lucide-react";
+import { Plus, KeyRound, MessageCircle, Copy, Check, Search, TriangleAlert, PartyPopper, Share2 } from "lucide-react";
 import { useWhispr } from "../store";
 import { api } from "../api";
+import { toast } from "../toast";
 import { Avatar } from "./Logo";
 import { Dialog, Button, TextInput, EmptyState } from "./ui";
 
@@ -13,10 +14,14 @@ const TABS = [
   { id: "dm", label: "Direct", icon: <MessageCircle size={15} /> },
 ];
 
-export default function NewChatModal({ open, onClose }) {
+const ACCENTS = ["#8B5CF6", "#EC4899", "#10B981", "#F59E0B", "#06B6D4", "#EF4444"];
+
+export default function NewChatModal({ open, onClose, initialTab = "create" }) {
   const w = useWhispr();
-  const [tab, setTab] = useState("create");
+  const [tab, setTab] = useState(initialTab);
   const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [accent, setAccent] = useState(ACCENTS[0]);
   const [code, setCode] = useState("");
   const [created, setCreated] = useState(null);
   const [copied, setCopied] = useState(false);
@@ -25,15 +30,24 @@ export default function NewChatModal({ open, onClose }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  const reset = () => { setTab("create"); setName(""); setCode(""); setCreated(null); setQ(""); setUsers([]); setError(""); setCopied(false); };
+  useEffect(() => { if (open) { setTab(initialTab); } }, [open, initialTab]);
+
+  const reset = () => {
+    setTab(initialTab); setName(""); setDescription(""); setAccent(ACCENTS[0]);
+    setCode(""); setCreated(null); setQ(""); setUsers([]); setError(""); setCopied(false);
+  };
   const close = () => { reset(); onClose(); };
 
   const doCreate = async () => {
     if (!name.trim()) return;
     setBusy(true); setError("");
     try {
-      const circle = await w.createCircle(name.trim());
+      const circle = await w.createCircle(name.trim(), {
+        description: description.trim() || undefined,
+        color: accent,
+      });
       setCreated(circle);
+      toast.success(`“${circle.name}” is live`, "Share the invite code so friends can join.");
     } catch (e) { setError(e.message); }
     setBusy(false);
   };
@@ -43,9 +57,14 @@ export default function NewChatModal({ open, onClose }) {
     setBusy(true); setError("");
     try {
       const circle = await w.joinCircle(code.trim());
+      toast.success(`Joined “${circle.name}”`, "Say hi — everyone's waiting.");
       close();
       w.selectChat(`circle:${circle.id}`);
-    } catch (e) { setError(e.message); }
+    } catch (e) {
+      setError(e.message === "No circle found with that code"
+        ? "That code doesn't match any circle. Check for typos and try again."
+        : e.message);
+    }
     setBusy(false);
   };
 
@@ -66,7 +85,20 @@ export default function NewChatModal({ open, onClose }) {
   };
 
   const copyCode = async () => {
-    try { await navigator.clipboard.writeText(created.code); setCopied(true); setTimeout(() => setCopied(false), 1600); } catch {}
+    try {
+      await navigator.clipboard.writeText(created.code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+      toast.success("Invite code copied", "Share it with your friends.");
+    } catch { setError("Couldn't copy — long-press the code to copy it manually."); }
+  };
+
+  const shareCode = async () => {
+    const text = `Join my Whispr circle “${created.name}” with invite code ${created.code}`;
+    try {
+      if (navigator.share) await navigator.share({ title: "Whispr invite", text });
+      else await copyCode();
+    } catch { /* user cancelled the share sheet */ }
   };
 
   return (
@@ -97,7 +129,31 @@ export default function NewChatModal({ open, onClose }) {
           <TextInput label="Circle name" value={name} onChange={(e) => setName(e.target.value)} maxLength={40}
             placeholder="e.g. Hostel gang" onKeyDown={(e) => e.key === "Enter" && doCreate()}
             hint="Circles are invite-only. You'll get a 6-character code to share." />
-          <Button onClick={doCreate} loading={busy} disabled={!name.trim()} className="w-full mt-5">
+          <div className="mt-4">
+            <label htmlFor="circle-desc" className="block text-[13px] font-semibold text-ink-2 mb-1.5">
+              Description <span className="text-ink-3 font-medium">(optional)</span>
+            </label>
+            <textarea id="circle-desc" value={description} onChange={(e) => setDescription(e.target.value)} maxLength={140}
+              rows={2} placeholder="What's this circle for?"
+              className="w-full rounded-md2 bg-base-elev border border-line px-3.5 py-2.5 text-[15px] resize-none
+                hover:border-ink-3 focus:border-brand focus:ring-2 focus:ring-brand-soft transition" />
+          </div>
+          <div className="mt-4">
+            <p className="text-[13px] font-semibold text-ink-2 mb-2" id="accent-label">Accent colour</p>
+            <div className="flex gap-2" role="radiogroup" aria-labelledby="accent-label">
+              {ACCENTS.map((c) => (
+                <button key={c} role="radio" aria-checked={accent === c} aria-label={`Accent ${c}`}
+                  onClick={() => setAccent(c)}
+                  className={`pressable w-9 h-9 rounded-full border-2 transition
+                    ${accent === c ? "border-ink-1 scale-110 shadow-lift" : "border-transparent hover:scale-105"}`}
+                  style={{ background: `linear-gradient(135deg, ${c}, ${c}AA)` }}
+                >
+                  {accent === c && <Check size={16} className="text-white mx-auto" aria-hidden />}
+                </button>
+              ))}
+            </div>
+          </div>
+          <Button onClick={doCreate} loading={busy} disabled={!name.trim()} className="w-full mt-6">
             Create circle
           </Button>
         </div>
@@ -105,9 +161,10 @@ export default function NewChatModal({ open, onClose }) {
 
       {tab === "create" && created && (
         <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className="text-center py-2">
-          <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-brand-accent/15 to-brand-pink/10 border border-line
-            flex items-center justify-center text-brand mb-3">
-            <PartyPopper size={26} />
+          <div className="celebrate w-14 h-14 mx-auto rounded-2xl border border-line
+            flex items-center justify-center text-brand mb-3"
+            style={{ background: `linear-gradient(135deg, ${created.color || "#8B5CF6"}26, ${created.color || "#8B5CF6"}0D)` }}>
+            <PartyPopper size={26} style={{ color: created.color || "#8B5CF6" }} />
           </div>
           <p className="font-bold text-[17px] tracking-tight">“{created.name}” is live</p>
           <p className="text-sm text-ink-3 mt-1">Share this code so friends can join:</p>
@@ -115,12 +172,21 @@ export default function NewChatModal({ open, onClose }) {
             className="pressable mt-4 font-mono font-bold tracking-[0.3em] text-2xl bg-base-hover border border-line
               rounded-md2 px-8 py-3.5 hover:border-brand transition inline-flex items-center gap-3">
             {created.code}
-            {copied ? <Check size={18} className="text-success" /> : <Copy size={18} className="text-ink-3" />}
+            {copied
+              ? <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden>
+                  <path className="check-draw" d="M4 10.5l4 4 8-9" stroke="var(--success)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              : <Copy size={18} className="text-ink-3" />}
           </button>
           <p className="text-xs text-ink-3 mt-2">{copied ? "Copied!" : "tap to copy"}</p>
-          <Button className="w-full mt-5" onClick={() => { close(); w.selectChat(`circle:${created.id}`); }}>
-            Open circle
-          </Button>
+          <div className="flex gap-2.5 mt-5">
+            <Button variant="secondary" className="flex-1" onClick={shareCode}>
+              <Share2 size={16} /> Share
+            </Button>
+            <Button className="flex-[2]" onClick={() => { close(); w.selectChat(`circle:${created.id}`); }}>
+              Open circle
+            </Button>
+          </div>
         </motion.div>
       )}
 

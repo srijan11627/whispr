@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Smile, Paperclip, Send, Timer, Zap, X, Loader2, Pencil } from "lucide-react";
 import EmojiPicker from "./EmojiPicker";
 import { api } from "../api";
+import { toast } from "../toast";
 
 const WHISPERS = [
   { label: "Off", value: 0 },
@@ -82,7 +83,7 @@ export default function Composer({ chat, user, replyTo, setReplyTo, editing, set
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
-    if (file.size > 10 * 1024 * 1024) { alert("File is bigger than 10 MB — pick a smaller one."); return; }
+    if (file.size > 10 * 1024 * 1024) { toast.error("File too big", "Pick something under 10 MB."); return; }
     setUploading(true);
     try {
       const { file: meta } = await api.upload(file);
@@ -97,7 +98,7 @@ export default function Composer({ chat, user, replyTo, setReplyTo, editing, set
       const res = await actions.send({ chatType: chat.chatType, chatId: chat.chatId, body: "", replyTo: replyTo?.id || null, attachment: meta, expiresIn: whisper || null, tempId });
       if (res && res.error) actions.fail(chat.key, tempId);
       setReplyTo(null); setWhisper(0);
-    } catch (err) { alert(err.message || "Upload failed"); }
+    } catch (err) { toast.error("Upload failed", err.message || "Try again in a moment."); }
     setUploading(false);
   };
 

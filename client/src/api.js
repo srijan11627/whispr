@@ -24,9 +24,10 @@ export const api = {
   me: () => req("/api/auth/me"),
   searchUsers: (q) => req(`/api/users?q=${encodeURIComponent(q)}`),
   myCircles: () => req("/api/circles"),
-  createCircle: (name) => req("/api/circles", { method: "POST", body: { name } }),
+  createCircle: (name, opts = {}) => req("/api/circles", { method: "POST", body: { name, description: opts.description, color: opts.color } }),
   joinCircle: (code) => req("/api/circles/join", { method: "POST", body: { code } }),
   circleMembers: (id) => req(`/api/circles/${id}/members`),
+  updateProfile: (displayName) => req("/api/profile", { method: "PUT", body: { displayName } }),
   myDms: () => req("/api/dms"),
   getOrCreateDm: (userId) => req("/api/dms", { method: "POST", body: { userId } }),
   messages: (chatType, chatId, { limit = 60, before } = {}) =>

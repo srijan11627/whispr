@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { api, setToken, getToken } from "./api";
 import { connectSocket, disconnectSocket, getSocket } from "./socket";
+import { toast } from "./toast";
 
 const Ctx = createContext(null);
 export const useWhispr = () => useContext(Ctx);
@@ -37,6 +38,7 @@ export function WhisprProvider({ children }) {
   const [themes, setThemes] = useState({});        // chatKey -> theme name
   const [nudgeTick, setNudgeTick] = useState(0);   // increments to trigger shake
   const [nudgeFrom, setNudgeFrom] = useState("");
+  const [jumpTarget, setJumpTarget] = useState(null); // {key, messageId} — scroll-to from global search
   const activeKeyRef = useRef(null);
   activeKeyRef.current = activeKey;
   const userRef = useRef(null);
@@ -62,14 +64,14 @@ export function WhisprProvider({ children }) {
     const { token, user } = await api.register(username, password, displayName);
     setToken(token); setUser(user);
   };
-  const logout = () => { disconnectSocket(); setToken(null); setUser(null); setChats([]); setMessages({}); setActiveKey(null); };
+  const logout = () => { disconnectSocket(); setToken(null); setUser(null); setChats([]); setMessages({}); setActiveKey(null); setJumpTarget(null); };
 
   // ---------- chat list ----------
   const refreshChats = async () => {
     if (!userRef.current) return;
     const [{ circles }, { dms }] = await Promise.all([api.myCircles(), api.myDms()]);
     const list = [];
-    for (const c of circles) list.push({ key: chatKey("circle", c.id), chatType: "circle", chatId: c.id, name: c.name, code: c.code, memberCount: c.memberCount, kind: "circle" });
+    for (const c of circles) list.push({ key: chatKey("circle", c.id), chatType: "circle", chatId: c.id, name: c.name, code: c.code, description: c.description, color: c.color, memberCount: c.memberCount, kind: "circle" });
     for (const d of dms) list.push({ key: chatKey("dm", d.id), chatType: "dm", chatId: d.id, name: d.partner.displayName, username: d.partner.username, partner: d.partner, kind: "dm" });
     // last-message preview per chat (friends-scale: fine)
     await Promise.all(list.map(async (ch) => {
@@ -203,6 +205,16 @@ export function WhisprProvider({ children }) {
       }));
     });
 
+    // whisper self-destruct: same removal, plus a discreet notification
+    socket.on("whisper-expired", ({ chatType, chatId, messageId }) => {
+      const key = chatKey(chatType, chatId);
+      setMessages((prev) => ({
+        ...prev,
+        [key]: (prev[key] || []).filter((m) => m.id !== messageId),
+      }));
+      if (key === activeKeyRef.current) toast.info("A whisper message self-destructed");
+    });
+
     socket.on("nudged", ({ chatType, chatId, fromName }) => {
       const key = chatKey(chatType, chatId);
       if (key === activeKeyRef.current) {
@@ -281,9 +293,13 @@ export function WhisprProvider({ children }) {
   const sendTyping = (chatType, chatId, on) => getSocket()?.emit(on ? "typing-start" : "typing-stop", { chatType, chatId });
   const markRead = (chatType, chatId, upTo) => getSocket()?.emit("mark-read", { chatType, chatId, upTo });
 
-  const createCircle = async (name) => { const { circle } = await api.createCircle(name); await refreshChats(); return circle; };
+  const createCircle = async (name, opts = {}) => { const { circle } = await api.createCircle(name, opts); await refreshChats(); return circle; };
   const joinCircle = async (code) => { const { circle } = await api.joinCircle(code); await refreshChats(); return circle; };
   const startDm = async (userId) => { const { dmId } = await api.getOrCreateDm(userId); await refreshChats(); return chatKey("dm", dmId); };
+  const updateProfile = async (displayName) => { const { user } = await api.updateProfile(displayName); setUser(user); return user; };
+
+  const requestJump = (key, messageId) => setJumpTarget({ key, messageId });
+  const clearJump = () => setJumpTarget(null);
 
   const setMood = async (key, theme) => {
     setThemes((prev) => ({ ...prev, [key]: theme }));
@@ -299,15 +315,16 @@ export function WhisprProvider({ children }) {
   };
 
   const value = useMemo(() => ({
-    user, authLoading, login, register, logout,
+    user, authLoading, login, register, logout, updateProfile,
     chats, activeKey, activeChat: chats.find((c) => c.key === activeKey) || null,
     messages: activeKey ? messages[activeKey] || [] : [],
     typingFor: activeKey ? typing[activeKey] || [] : [],
     presence, themes, nudgeTick, nudgeFrom,
+    jumpTarget, requestJump, clearJump,
     selectChat, loadOlder, sendMessage, react, editMessage, deleteMessage,
     nudge, sendTyping, markRead, createCircle, joinCircle, startDm, setMood, refreshChats,
     addTempMessage, failTempMessage, deselectChat,
-  }), [user, authLoading, chats, activeKey, messages, typing, presence, themes, nudgeTick, nudgeFrom]);
+  }), [user, authLoading, chats, activeKey, messages, typing, presence, themes, nudgeTick, nudgeFrom, jumpTarget]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

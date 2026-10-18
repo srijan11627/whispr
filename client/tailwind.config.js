@@ -22,6 +22,7 @@ export default {
           lav: "var(--lavender)",
           accent: "var(--accent)",
           pink: "var(--pink)",
+          rose: "var(--rose)",
           deep: "var(--violet-deep)",
         },
         ink: {

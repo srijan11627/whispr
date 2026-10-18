@@ -4,13 +4,15 @@ import { format, isToday, isYesterday } from "date-fns";
 import { motion } from "framer-motion";
 import {
   Plus, Search, Sun, Moon, LogOut, RefreshCw, ChevronsLeft, ChevronsRight,
-  Hash, MessageCircle, Paperclip, Zap,
+  Hash, MessageCircle, Paperclip, Zap, Pencil,
 } from "lucide-react";
 import { useWhispr } from "../store";
 import { useTheme } from "../theme";
+import { toast } from "../toast";
 import Logo, { Avatar } from "./Logo";
 import NewChatModal from "./NewChatModal";
-import { Badge, Dropdown, MenuItem, SectionLabel, IconButton, ConnectionBanner } from "./ui";
+import GlobalSearch from "./GlobalSearch";
+import { Badge, Dropdown, MenuItem, SectionLabel, IconButton, ConnectionBanner, Dialog, Button, TextInput } from "./ui";
 
 function timeAgo(ts) {
   if (!ts) return "";
@@ -60,7 +62,7 @@ function ChatRow({ chat, active, online, meId, onSelect }) {
       )}
       <Avatar
         name={chat.name}
-        color={chat.kind === "dm" ? chat.partner.color : "#8B5CF6"}
+        color={chat.kind === "dm" ? chat.partner.color : (chat.color || "#8B5CF6")}
         size={44}
         online={online}
       />
@@ -87,15 +89,31 @@ function ChatRow({ chat, active, online, meId, onSelect }) {
 export default function Sidebar({ mobileHidden }) {
   const w = useWhispr();
   const { dark, toggle } = useTheme();
-  const [modal, setModal] = useState(false);
+  const [modal, setModal] = useState(null); // "create" | "join" | "dm" — null = closed
   const [filter, setFilter] = useState("");
   const [menu, setMenu] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const q = filter.trim().toLowerCase();
   const circles = useMemo(() => w.chats.filter((c) => c.kind === "circle" && c.name.toLowerCase().includes(q)), [w.chats, q]);
   const dms = useMemo(() => w.chats.filter((c) => c.kind === "dm" && c.name.toLowerCase().includes(q)), [w.chats, q]);
   const totalUnread = w.chats.reduce((n, c) => n + (c.unread || 0), 0);
+
+  const openEdit = () => { setNewName(w.user.displayName); setEditOpen(true); setMenu(false); };
+  const saveProfile = async () => {
+    if (!newName.trim()) return;
+    setSaving(true);
+    try {
+      await w.updateProfile(newName.trim());
+      toast.success("Profile updated", "Your display name is live everywhere.");
+      setEditOpen(false);
+    } catch (e) { toast.error("Couldn't save", e.message); }
+    setSaving(false);
+  };
 
   return (
     <aside
@@ -119,8 +137,13 @@ export default function Sidebar({ mobileHidden }) {
         {!collapsed && (
           <IconButton tip="New chat" label="New chat" size={36}
             className="bg-gradient-to-br from-brand-accent to-brand-deep !text-white shadow-glow hover:brightness-110"
-            onClick={() => setModal(true)}>
+            onClick={() => setModal("create")}>
             <Plus size={18} strokeWidth={2.5} />
+          </IconButton>
+        )}
+        {!collapsed && (
+          <IconButton tip="Search messages" label="Search messages" size={36} onClick={() => setSearchOpen(true)}>
+            <Search size={17} />
           </IconButton>
         )}
         <div className={`relative ${collapsed ? "mt-1" : ""}`}>
@@ -141,6 +164,9 @@ export default function Sidebar({ mobileHidden }) {
               onClick={() => { toggle(); setMenu(false); }}>
               {dark ? "Light mode" : "Dark mode"}
             </MenuItem>
+            <MenuItem icon={<Pencil size={16} />} onClick={openEdit}>
+              Edit profile
+            </MenuItem>
             <MenuItem icon={<RefreshCw size={16} />} onClick={() => { w.refreshChats(); setMenu(false); }}>
               Refresh chats
             </MenuItem>
@@ -158,7 +184,7 @@ export default function Sidebar({ mobileHidden }) {
         <div className="flex-1 flex flex-col items-center gap-2 py-2">
           <IconButton tip="New chat" label="New chat" size={44}
             className="bg-gradient-to-br from-brand-accent to-brand-deep !text-white shadow-glow"
-            onClick={() => setModal(true)}>
+            onClick={() => setModal("create")}>
             <Plus size={20} strokeWidth={2.5} />
           </IconButton>
           <IconButton tip={dark ? "Light mode" : "Dark mode"} label="Toggle theme" size={44} onClick={toggle}>
@@ -221,7 +247,7 @@ export default function Sidebar({ mobileHidden }) {
 
           {/* footer */}
           <div className="flex items-center justify-between px-4 py-2.5 border-t border-line">
-            <p className="text-[11px] text-ink-3 font-medium">Whispr v3 · invite-only</p>
+            <p className="text-[11px] text-ink-3 font-medium">Whispr v4 · invite-only</p>
             <div className="flex items-center gap-2">
               {totalUnread > 0 && <Badge count={totalUnread} />}
               <IconButton tip="Collapse sidebar" label="Collapse sidebar" size={30} onClick={() => setCollapsed(true)}
@@ -233,7 +259,20 @@ export default function Sidebar({ mobileHidden }) {
         </>
       )}
 
-      <NewChatModal open={modal} onClose={() => setModal(false)} />
+      <NewChatModal open={!!modal} initialTab={modal || "create"} onClose={() => setModal(null)} />
+      <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
+
+      {/* edit profile dialog */}
+      <Dialog open={editOpen} onClose={() => setEditOpen(false)} title="Edit profile">
+        <TextInput label="Display name" value={newName} onChange={(e) => setNewName(e.target.value)} maxLength={30}
+          placeholder="What should friends call you?"
+          onKeyDown={(e) => e.key === "Enter" && saveProfile()} />
+        <p className="text-xs text-ink-3 mt-2">Your username @{w.user.username} stays the same.</p>
+        <div className="flex gap-2.5 mt-5 justify-end">
+          <Button variant="secondary" onClick={() => setEditOpen(false)}>Cancel</Button>
+          <Button loading={saving} disabled={!newName.trim()} onClick={saveProfile}>Save</Button>
+        </div>
+      </Dialog>
     </aside>
   );
 }

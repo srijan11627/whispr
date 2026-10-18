@@ -63,7 +63,9 @@ CREATE TABLE IF NOT EXISTS circles (
   name TEXT NOT NULL,
   code TEXT UNIQUE NOT NULL,              -- 6-char invite code
   owner_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  created_at INTEGER NOT NULL
+  created_at INTEGER NOT NULL,
+  description TEXT,                       -- optional circle blurb (v4)
+  color TEXT                              -- optional accent color (v4)
 );
 
 CREATE TABLE IF NOT EXISTS circle_members (
@@ -122,6 +124,10 @@ CREATE TABLE IF NOT EXISTS chat_themes (
 
 CREATE INDEX IF NOT EXISTS idx_msg_circle ON messages(circle_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_msg_dm ON messages(dm_id, created_at);
+-- id-ordered variants: message lists ORDER BY id DESC, so these let SQLite
+-- walk the index in order instead of sorting
+CREATE INDEX IF NOT EXISTS idx_msg_circle_id ON messages(circle_id, id);
+CREATE INDEX IF NOT EXISTS idx_msg_dm_id ON messages(dm_id, id);
 `;
 
 async function initDb() {
@@ -132,6 +138,13 @@ async function initDb() {
     try { await db.execute("PRAGMA foreign_keys = ON"); } catch { /* ignore */ }
   }
   await db.executeMultiple(SCHEMA);
+  // lightweight migration for DBs created before v4: circle accent + description
+  try {
+    const cols = await all("PRAGMA table_info(circles)");
+    const names = new Set(cols.map((c) => c.name));
+    if (!names.has("description")) await db.execute("ALTER TABLE circles ADD COLUMN description TEXT");
+    if (!names.has("color")) await db.execute("ALTER TABLE circles ADD COLUMN color TEXT");
+  } catch (e) { console.error("[db] circle migration failed:", e.message); }
   // Clean up any whisper messages whose timer expired while the server was down
   const wiped = await run(
     "UPDATE messages SET deleted = 1 WHERE deleted = 0 AND expires_at IS NOT NULL AND expires_at <= ?",

@@ -1,5 +1,5 @@
 // Whispr client entry.
-window.__whispr = { version: 3.2 }; // version stamp — check in console: window.__whispr.version
+window.__whispr = { version: 4 }; // version stamp — check in console: window.__whispr.version
 
 import React from "react";
 import ReactDOM from "react-dom/client";

@@ -9,6 +9,9 @@ export function connectSocket() {
   if (socket) socket.disconnect();
   socket = io(import.meta.env.VITE_SERVER_URL || undefined, {
     auth: { token: getToken() },
+    // websocket first: Render supports it, and it skips the slow
+    // HTTP-long-polling -> upgrade handshake (~300-500ms on cold connect)
+    transports: ["websocket", "polling"],
     reconnection: true,
     reconnectionDelay: 1000,
   });

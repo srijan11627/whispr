@@ -52,16 +52,20 @@ async function attachReactionsAndReceipts(messages) {
   const ids = messages.map((m) => m.id);
   const marks = ids.map(() => "?").join(",");
   const byId = Object.fromEntries(messages.map((m) => [m.id, m]));
-  const reactions = await all(
-    `SELECT r.message_id, r.emoji, u.id AS uid, u.display_name AS name
-     FROM reactions r JOIN users u ON u.id = r.user_id
-     WHERE r.message_id IN (${marks})`, ...ids);
+  // independent queries — run in parallel, not sequentially (each is a
+  // trans-oceanic roundtrip when the DB is remote)
+  const [reactions, receipts] = await Promise.all([
+    all(
+      `SELECT r.message_id, r.emoji, u.id AS uid, u.display_name AS name
+       FROM reactions r JOIN users u ON u.id = r.user_id
+       WHERE r.message_id IN (${marks})`, ...ids),
+    all(
+      `SELECT message_id, user_id, delivered_at, read_at FROM receipts WHERE message_id IN (${marks})`,
+      ...ids),
+  ]);
   for (const r of reactions) {
     byId[r.message_id].reactions.push({ emoji: r.emoji, userId: r.uid, userName: r.name });
   }
-  const receipts = await all(
-    `SELECT message_id, user_id, delivered_at, read_at FROM receipts WHERE message_id IN (${marks})`,
-    ...ids);
   for (const r of receipts) {
     byId[r.message_id].receipts.push({ userId: r.user_id, deliveredAt: r.delivered_at, readAt: r.read_at });
   }
@@ -147,6 +151,16 @@ router.get("/auth/me", authMiddleware, ah(async (req, res) => {
 
 router.use(authMiddleware); // everything below needs auth
 
+// ---------- profile ----------
+// Display-name edit (used by the profile menu). Real endpoint, same patterns.
+router.put("/profile", ah(async (req, res) => {
+  const name = String(req.body.displayName || "").trim().slice(0, 30);
+  if (!name) return res.status(400).json({ error: "Display name can't be empty" });
+  await run("UPDATE users SET display_name = ? WHERE id = ?", name, req.user.id);
+  const user = await get("SELECT * FROM users WHERE id = ?", req.user.id);
+  res.json({ user: publicUser(user) });
+}));
+
 // ---------- user directory ----------
 router.get("/users", ah(async (req, res) => {
   const q = `%${String(req.query.q || "").trim().toLowerCase()}%`;
@@ -169,7 +183,7 @@ async function makeCode() {
 
 router.get("/circles", ah(async (req, res) => {
   const circles = await all(`
-    SELECT c.id, c.name, c.code, c.created_at,
+    SELECT c.id, c.name, c.code, c.created_at, c.description, c.color,
            (SELECT COUNT(*) FROM circle_members WHERE circle_id = c.id) AS memberCount,
            (SELECT MAX(id) FROM messages WHERE circle_id = c.id AND deleted = 0) AS lastMsgId
     FROM circles c JOIN circle_members cm ON cm.circle_id = c.id
@@ -177,16 +191,20 @@ router.get("/circles", ah(async (req, res) => {
   res.json({ circles });
 }));
 
+const CIRCLE_COLORS = ["#8B5CF6", "#EC4899", "#10B981", "#F59E0B", "#06B6D4", "#EF4444"];
+
 router.post("/circles", ah(async (req, res) => {
   const name = String(req.body.name || "").trim().slice(0, 40);
   if (!name) return res.status(400).json({ error: "Circle needs a name" });
+  const description = String(req.body.description || "").trim().slice(0, 140) || null;
+  const color = CIRCLE_COLORS.includes(req.body.color) ? req.body.color : "#8B5CF6";
   const code = await makeCode();
   const now = Date.now();
-  const info = await run("INSERT INTO circles (name, code, owner_id, created_at) VALUES (?, ?, ?, ?)",
-    name, code, req.user.id, now);
+  const info = await run("INSERT INTO circles (name, code, owner_id, created_at, description, color) VALUES (?, ?, ?, ?, ?, ?)",
+    name, code, req.user.id, now, description, color);
   await run("INSERT INTO circle_members (circle_id, user_id, joined_at) VALUES (?, ?, ?)",
     info.lastInsertRowid, req.user.id, now);
-  res.json({ circle: { id: info.lastInsertRowid, name, code, memberCount: 1 } });
+  res.json({ circle: { id: info.lastInsertRowid, name, code, description, color, memberCount: 1 } });
 }));
 
 router.post("/circles/join", ah(async (req, res) => {
@@ -195,7 +213,7 @@ router.post("/circles/join", ah(async (req, res) => {
   if (!circle) return res.status(404).json({ error: "No circle found with that code" });
   await run("INSERT OR IGNORE INTO circle_members (circle_id, user_id, joined_at) VALUES (?, ?, ?)",
     circle.id, req.user.id, Date.now());
-  res.json({ circle: { id: circle.id, name: circle.name, code: circle.code } });
+  res.json({ circle: { id: circle.id, name: circle.name, code: circle.code, description: circle.description, color: circle.color } });
 }));
 
 router.get("/circles/:id/members", ah(async (req, res) => {

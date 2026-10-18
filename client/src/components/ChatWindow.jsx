@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { useWhispr } from "../store";
 import { api } from "../api";
+import { toast } from "../toast";
 import { Avatar } from "./Logo";
 import MessageBubble from "./MessageBubble";
 import Composer from "./Composer";
@@ -66,8 +67,13 @@ function MembersPopover({ chat, onClose }) {
           </div>
         ))}
       </div>
-      <div className="border-t border-line mt-1 pt-2 px-4 pb-1">
-        <p className="text-[11px] text-ink-3">Invite code: <button onClick={() => navigator.clipboard?.writeText(chat.code)}
+      <div className="border-t border-line mt-1 pt-2 px-4 pb-1 space-y-1">
+        {chat.description && <p className="text-[12px] text-ink-3 leading-snug">{chat.description}</p>}
+        <p className="text-[11px] text-ink-3">Invite code: <button
+          onClick={async () => {
+            try { await navigator.clipboard?.writeText(chat.code); toast.success("Invite code copied", "Share it with your friends."); }
+            catch { toast.error("Couldn't copy", "Long-press the code to copy it manually."); }
+          }}
           className="font-mono font-bold text-brand tracking-[0.2em]" title="Copy invite code">{chat.code}</button></p>
       </div>
     </motion.div>
@@ -160,6 +166,16 @@ export default function ChatWindow({ onBack }) {
     }
   };
 
+  // jump-to-message from global search: scroll once the target chat is open
+  const { jumpTarget, clearJump } = w;
+  useEffect(() => {
+    if (jumpTarget && jumpTarget.key === chat.key) {
+      const t = setTimeout(() => scrollToMessage(jumpTarget.messageId), 350);
+      clearJump();
+      return () => clearTimeout(t);
+    }
+  }, [jumpTarget, chat.key]); // eslint-disable-line
+
   // in-chat search (debounced)
   useEffect(() => {
     if (!query.trim() || query.trim().length < 2) { setResults([]); return; }
@@ -181,7 +197,7 @@ export default function ChatWindow({ onBack }) {
       expiresIn: temp.expiresAt ? Math.max(1, Math.round((temp.expiresAt - Date.now()) / 1000)) : null,
       tempId: temp.tempId,
     });
-    if (res && res.error) alert("Still failing: " + res.error);
+    if (res && res.error) toast.error("Still failing", res.error);
   };
 
   // group messages with date dividers
@@ -221,7 +237,7 @@ export default function ChatWindow({ onBack }) {
           className="pressable md:hidden p-2 -ml-1 rounded-full text-ink-2 hover:bg-base-hover">
           <ArrowLeft size={20} />
         </button>
-        <Avatar name={chat.name} color={chat.kind === "dm" ? chat.partner.color : "#8B5CF6"} size={42}
+        <Avatar name={chat.name} color={chat.kind === "dm" ? chat.partner.color : (chat.color || "#8B5CF6")} size={42}
           online={chat.kind === "dm" ? partnerPresence?.online : undefined} />
         <div className="flex-1 min-w-0">
           <h2 className="font-bold truncate leading-tight tracking-tight text-[16px]">{chat.name}</h2>
@@ -424,7 +440,9 @@ export default function ChatWindow({ onBack }) {
         <div className="flex gap-2.5 mt-5 justify-end">
           <Button variant="secondary" onClick={() => setDeleteTarget(null)}>Cancel</Button>
           <Button variant="destructive" onClick={() => {
-            w.deleteMessage(deleteTarget.id).catch((e) => alert(e.message));
+            w.deleteMessage(deleteTarget.id)
+              .then(() => toast.info("Message deleted", "It's gone for everyone in this chat."))
+              .catch((e) => toast.error("Couldn't delete", e.message));
             setDeleteTarget(null);
           }}>Delete for everyone</Button>
         </div>
